@@ -67,7 +67,10 @@
     padding: 14px; font-size: 17px; font-family: inherit;
   }
   textarea { min-height: 110px; }
-  .swatches { display:flex; gap:12px; margin: 6px 0 14px; }
+  .swatches { display:flex; flex-wrap: wrap; gap:12px; margin: 6px 0 14px; }
+  .day-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:8px; margin: 4px 0 12px; }
+  .day-opt { padding: 16px 0; text-align:center; background: var(--surface); border:1px solid var(--line); border-radius: 12px; color: var(--chalk); font-size: 17px; font-weight: 700; cursor: pointer; }
+  .day-opt.sel { border-color: var(--accent); background: var(--surface2); color: var(--accent); }
   .swatch { width: 52px; height: 52px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
   .swatch.sel { border-color: var(--chalk); }
   .ob-progress { display:flex; gap:6px; margin-bottom: 18px; }
@@ -293,10 +296,14 @@ let cur = null, timerInt = null, timerLeft = 0, sessTick = null, ptMood = null;
 
 /* ================= ONBOARDING ================= */
 const ACCENTS = [
-  { name: "Brass", val: "#f0a63f", ink: "#1c1508" },
-  { name: "Coral", val: "#e77e6a", ink: "#210f0b" },
-  { name: "Sage",  val: "#a4c47e", ink: "#131a0a" },
-  { name: "Sky",   val: "#7fb3d8", ink: "#0a141c" }
+  { name: "Brass",  val: "#f0a63f", ink: "#1c1508" },
+  { name: "Coral",  val: "#e77e6a", ink: "#210f0b" },
+  { name: "Sage",   val: "#a4c47e", ink: "#131a0a" },
+  { name: "Sky",    val: "#7fb3d8", ink: "#0a141c" },
+  { name: "Violet", val: "#a98ae0", ink: "#140a1c" },
+  { name: "Rose",   val: "#e08ab8", ink: "#1c0a14" },
+  { name: "Teal",   val: "#6fc7b4", ink: "#0a1c17" },
+  { name: "Sand",   val: "#d8c08a", ink: "#1c160a" }
 ];
 let ob = { step: 0, a: {} };
 const OB_STEPS = 8;
@@ -344,8 +351,10 @@ function obRender() {
   if (s === 4) el.innerHTML =
     "<div class='ob-step'><div class='ob-q'>How many days a week can you train on your own?</div>" +
     "<p class='ob-hint'>Honest number, not ambitious number. " + (a.pt === "yes" ? "Not counting your PT days." : "") + "</p>" +
-    choice("solo", "1", "1 day", "") + choice("solo", "2", "2 days", "") +
-    choice("solo", "3", "3 days", "") + choice("solo", "0", "None for now", a.pt === "yes" ? "PT sessions only — that's fine" : "Just exploring for now") +
+    "<div class='day-grid'>" + ["0","1","2","3","4","5","6","7"].map(v =>
+      "<button class='day-opt" + (a.solo === v ? " sel" : "") + "' onclick='obPick(\"solo\",\"" + v + "\",false)'>" + (v === "0" ? "None" : v) + "</button>").join("") + "</div>" +
+    (parseInt(a.solo, 10) > 4 ?
+      "<p class='ob-hint' style='color:var(--accent)'>" + a.solo + " days is serious dedication — one honest note from your coach: muscles grow on REST days, not gym days. Keep 1–2 days fully off or very easy (walks, stretching), and if something aches, rest wins. I'll hold you to the showing up; your body holds you to the recovering.</p>" : "") +
     nextBtn() + "</div>";
   if (s === 5) el.innerHTML =
     "<div class='ob-step'><div class='ob-q'>Anything your body wants me to know?</div>" +
@@ -452,6 +461,7 @@ function coachLines() {
   if (g.includes("confidence")) lines.push("Confidence isn't found. It's built — one logged set at a time.");
   if (g.includes("energy")) lines.push("The workout costs energy today and pays it back with interest all week.");
   if (P.exp === "new") lines.push("Everyone in that gym was new once. Most of them still remember it. Nobody's judging.");
+  if (parseInt(P.solo, 10) > 4) lines.push("Reminder from your own plan: muscles grow on rest days. Is today one of them?");
   return lines;
 }
 
