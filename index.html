@@ -123,6 +123,8 @@
   .note-item { background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; font-size: 15px; }
   .note-item .eyebrow { margin-bottom: 4px; }
   .field-lab { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+  .chip { display:inline-block; padding:9px 14px; margin:0 6px 8px 0; background:var(--surface2); border:1px solid var(--line); border-radius:20px; color:var(--chalk); font-size:14px; font-weight:600; cursor:pointer; }
+  .chip:active { border-color: var(--accent); }
 
   button:focus-visible, .choice:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
@@ -213,6 +215,15 @@
   <h2 class="day-name" id="sessTitle" style="margin-bottom:4px;"></h2>
   <p class="sub" id="sessWhy"></p>
   <div id="exList"></div>
+
+  <div class="ex-card">
+    <div class="ex-name">Did something not on the list?</div>
+    <div class="ex-target">Add any exercise — I'll remember it for next time.</div>
+    <div id="recentEx" style="margin:8px 0 2px;"></div>
+    <input type="text" id="newExName" placeholder="Exercise name, e.g. hip thrust">
+    <button class="ghost" onclick="addExercise()">+ Add to today's workout</button>
+  </div>
+
   <button class="finish-btn" onclick="finishSession()">Finish workout</button>
 </div>
 
@@ -561,14 +572,15 @@ function startSession(dayId) {
   cur = {
     type: "solo", dayId, dayName: day.name, started: Date.now(), mood: null,
     ex: day.exercises.map(e => ({
-      n: e.n,
+      n: e.n, target: e.sets + " sets × " + e.reps, note: e.note || "", rest: e.rest || 90,
       sets: Array.from({ length: e.sets }, () => ({ done: false, weight: lastWeightFor(e.n) ?? 0, reps: 0 }))
     }))
   };
   document.getElementById("sessEyebrow").textContent = day.eyebrow;
   document.getElementById("sessTitle").textContent = day.name;
   document.getElementById("sessWhy").textContent = day.why;
-  renderExercises(day);
+  document.getElementById("newExName").value = "";
+  renderExercises();
   show("session");
   clearInterval(sessTick);
   sessTick = setInterval(() => {
@@ -583,19 +595,18 @@ function plateColor(w) {
   if (w > 0) return "var(--plate-grn)";
   return "var(--line)";
 }
-function renderExercises(day) {
+function renderExercises() {
   const list = document.getElementById("exList");
   list.innerHTML = "";
-  day.exercises.forEach((e, ei) => {
-    const st = cur.ex[ei];
+  cur.ex.forEach((e, ei) => {
     const card = document.createElement("div");
-    card.className = "ex-card" + (st.sets.every(s => s.done) ? " done-all" : "");
-    let html = "<div class='ex-name'>" + e.n + "</div>" +
-      "<div class='ex-target'>" + e.sets + " sets × " + e.reps + "</div>";
+    card.className = "ex-card" + (e.sets.every(s => s.done) ? " done-all" : "");
+    let html = "<div class='ex-name'>" + esc(e.n) + (e.custom ? " <span class='eyebrow'>your addition</span>" : "") + "</div>" +
+      "<div class='ex-target'>" + e.target + "</div>";
     if (e.note) html += "<div class='ex-note'>" + e.note + "</div>";
     const lw = lastWeightFor(e.n);
     if (lw) html += "<div class='ex-last'>Last time: <b class='mono'>" + lw + " kg</b>.</div>";
-    st.sets.forEach((s, si) => {
+    e.sets.forEach((s, si) => {
       html += "<div class='set-row" + (s.done ? " logged" : "") + "'>" +
         "<span class='set-lab'>" + (s.done ? "✓ " : "") + "Set " + (si + 1) + "</span>" +
         "<span class='ctrl'>" +
@@ -608,12 +619,39 @@ function renderExercises(day) {
           "<span class='rep-val'>" + s.reps + "</span>" +
           "<button onclick='bump(" + ei + "," + si + ",\"reps\",1)' aria-label='more reps'>+</button>" +
         "</span>" +
-        "<button class='log-set' onclick='logSet(" + ei + "," + si + "," + (e.rest || 90) + ")'>" + (s.done ? "✓" : "Log") + "</button>" +
+        "<button class='log-set' onclick='logSet(" + ei + "," + si + ")'>" + (s.done ? "✓" : "Log") + "</button>" +
       "</div>";
     });
     card.innerHTML = html;
     list.appendChild(card);
   });
+  renderRecentEx();
+}
+function renderRecentEx() {
+  const box = document.getElementById("recentEx");
+  const saved = store.get("customex", []);
+  const inSession = cur.ex.map(e => e.n.toLowerCase());
+  const options = saved.filter(n => !inSession.includes(n.toLowerCase()));
+  box.innerHTML = options.length
+    ? options.map(n => "<button class='chip' onclick='addExercise(\"" + esc(n) + "\")'>+ " + esc(n) + "</button>").join("")
+    : "";
+}
+function addExercise(name) {
+  const input = document.getElementById("newExName");
+  const n = (name || input.value || "").trim();
+  if (!n) return;
+  if (cur.ex.some(e => e.n.toLowerCase() === n.toLowerCase())) { input.value = ""; return; }
+  cur.ex.push({
+    n: n, target: "your call — ~3 sets", note: "", rest: 90, custom: true,
+    sets: Array.from({ length: 3 }, () => ({ done: false, weight: lastWeightFor(n) ?? 0, reps: 0 }))
+  });
+  const saved = store.get("customex", []);
+  if (!saved.some(s => s.toLowerCase() === n.toLowerCase())) {
+    saved.push(n);
+    store.set("customex", saved.slice(-30));
+  }
+  input.value = "";
+  renderExercises();
 }
 function fmtW(w) { return w % 1 === 0 ? w : w.toFixed(1); }
 function bump(ei, si, field, amt) {
@@ -621,16 +659,15 @@ function bump(ei, si, field, amt) {
   s[field] = Math.max(0, +(s[field] + amt).toFixed(1));
   redraw();
 }
-function logSet(ei, si, rest) {
+function logSet(ei, si) {
   const s = cur.ex[ei].sets[si];
   s.done = !s.done;
   redraw();
-  if (s.done) startTimer(rest);
+  if (s.done) startTimer(cur.ex[ei].rest || 90);
 }
 function redraw() {
-  const day = buildPlan().find(d => d.id === cur.dayId);
   const y = window.scrollY;
-  renderExercises(day);
+  renderExercises();
   window.scrollTo(0, y);
 }
 function confirmLeave() {
@@ -688,7 +725,7 @@ function finishSession() {
   let html = "";
   cur.ex.forEach(e => {
     const done = e.sets.filter(s => s.done);
-    if (done.length) html += "<div class='summary-line'>" + e.n + " — <span class='mono'>" +
+    if (done.length) html += "<div class='summary-line'>" + esc(e.n) + " — <span class='mono'>" +
       done.map(s => fmtW(s.weight) + "×" + s.reps).join(", ") + "</span></div>";
   });
   document.getElementById("doneSummary").innerHTML = html;
@@ -715,7 +752,7 @@ function buildLog(sess) {
   } else {
     (sess.ex || []).forEach(e => {
       const done = e.sets.filter(s => s.done);
-      if (done.length) t += "- " + e.n + ": " + done.map(s => fmtW(s.weight) + "kg × " + s.reps).join(", ") + "\n";
+      if (done.length) t += "- " + e.n + (e.custom ? " [own addition]" : "") + ": " + done.map(s => fmtW(s.weight) + "kg × " + s.reps).join(", ") + "\n";
     });
   }
   return t;
