@@ -127,6 +127,10 @@
   .chip:active { border-color: var(--accent); }
   .ex-head { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
   .skip-btn { background:none; border:none; color:var(--muted); font-size:13px; text-decoration:underline; cursor:pointer; padding:4px 0 4px 10px; flex-shrink:0; }
+  .col-row { display:flex; align-items:center; gap:8px; padding: 6px 0 2px; }
+  .col-lab { font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); text-align:center; }
+  .set-tools { display:flex; gap:20px; padding: 10px 0 2px; border-top: 1px dashed var(--line); }
+  .set-tools button { background:none; border:none; color:var(--muted); font-size:14px; text-decoration:underline; cursor:pointer; padding:4px 0; }
 
   button:focus-visible, .choice:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
@@ -609,6 +613,9 @@ function renderExercises() {
     if (e.note) html += "<div class='ex-note'>" + e.note + "</div>";
     const lw = lastWeightFor(e.n);
     if (lw) html += "<div class='ex-last'>Last time: <b class='mono'>" + lw + " kg</b>.</div>";
+    html += "<div class='col-row'><span style='width:44px'></span>" +
+      "<span class='col-lab' style='width:152px'>weight (kg)</span>" +
+      "<span class='col-lab' style='width:146px'>reps</span></div>";
     e.sets.forEach((s, si) => {
       html += "<div class='set-row" + (s.done ? " logged" : "") + "'>" +
         "<span class='set-lab'>" + (s.done ? "✓ " : "") + "Set " + (si + 1) + "</span>" +
@@ -625,10 +632,26 @@ function renderExercises() {
         "<button class='log-set' onclick='logSet(" + ei + "," + si + ")'>" + (s.done ? "✓" : "Log") + "</button>" +
       "</div>";
     });
+    html += "<div class='set-tools'><button onclick='addSet(" + ei + ")'>+ add set</button>" +
+      (e.sets.length > 1 ? "<button onclick='removeSet(" + ei + ")'>− remove set</button>" : "") + "</div>";
     card.innerHTML = html;
     list.appendChild(card);
   });
   renderRecentEx();
+}
+function addSet(ei) {
+  const e = cur.ex[ei];
+  const prev = e.sets[e.sets.length - 1];
+  e.sets.push({ done: false, weight: prev ? prev.weight : (lastWeightFor(e.n) ?? 0), reps: 0 });
+  redraw();
+}
+function removeSet(ei) {
+  const e = cur.ex[ei];
+  if (e.sets.length <= 1) return;
+  const last = e.sets[e.sets.length - 1];
+  if (last.done && !confirm("Remove the last set? It's already logged.")) return;
+  e.sets.pop();
+  redraw();
 }
 function renderRecentEx() {
   const box = document.getElementById("recentEx");
