@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#161311">
+<title>Coachellah</title>
+<style>
+  :root {
+    --bg: #161311; --surface: #211d1a; --surface2: #2b2622; --line: #383129;
+    --chalk: #f1eadf; --muted: #97897b;
+    --accent: #f0a63f; --accent-ink: #1c1508;
+    --good: #9dc978;
+    --plate-red: #c94f42; --plate-blue: #4f7fb5; --plate-yel: #d8b13c; --plate-grn: #6fa863;
+    color-scheme: dark;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: var(--bg); color: var(--chalk);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 17px; line-height: 1.45; padding-bottom: 120px;
+  }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 20px 16px; }
+  h1, h2, .day-name { font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+  .eyebrow { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+  .mono, .timer-digits, .weight-val, .rep-val { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  .screen { display:none; }
+  .screen.active { display:block; animation: rise .25s ease; }
+  @keyframes rise { from { opacity:0; transform: translateY(6px);} to { opacity:1; transform:none;} }
+  @media (prefers-reduced-motion: reduce) { .screen.active { animation: none; } }
+
+  .greet { margin: 8px 0 2px; font-size: 30px; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .coachline { border-left: 3px solid var(--accent); padding: 10px 14px; margin: 0 0 22px; background: var(--surface); border-radius: 0 10px 10px 0; font-size: 15px; }
+  .coachline b { color: var(--accent); }
+
+  .day-card, .action-card {
+    width:100%; text-align:left; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 16px; margin-bottom: 12px; color: var(--chalk); cursor: pointer; display:block;
+  }
+  .day-card:active, .action-card:active { background: var(--surface2); }
+  .day-name { font-size: 21px; margin-bottom: 4px; }
+  .day-why { color: var(--muted); font-size: 14px; }
+  .fav { color: var(--accent); }
+
+  .stats-row { display:flex; gap:10px; margin: 20px 0 8px; }
+  .stat { flex:1; background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 12px; text-align:center; }
+  .stat .mono { font-size: 22px; font-weight: 700; display:block; }
+  .stat span:last-child { font-size: 12px; color: var(--muted); }
+  .linkbtn { background:none; border:none; color: var(--muted); font-size: 15px; text-decoration: underline; cursor:pointer; padding: 10px 4px; }
+
+  .ob-step { margin-top: 10px; }
+  .ob-q { font-size: 24px; font-weight: 800; margin: 6px 0 6px; }
+  .ob-hint { color: var(--muted); font-size: 14.5px; margin-bottom: 16px; }
+  .choice {
+    width:100%; text-align:left; padding: 15px 16px; margin-bottom: 10px;
+    background: var(--surface); border:1px solid var(--line); border-radius: 12px;
+    color: var(--chalk); font-size: 16px; font-weight: 600; cursor: pointer;
+  }
+  .choice small { display:block; font-weight:400; color: var(--muted); font-size: 13.5px; margin-top:2px; }
+  .choice.sel { border-color: var(--accent); background: var(--surface2); }
+  .choice.sel::after { content: " \2713"; color: var(--accent); font-weight: 800; }
+  input[type=text], textarea {
+    width: 100%; background: var(--surface); color: var(--chalk);
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px; font-size: 17px; font-family: inherit;
+  }
+  textarea { min-height: 110px; }
+  .swatches { display:flex; gap:12px; margin: 6px 0 14px; }
+  .swatch { width: 52px; height: 52px; border-radius: 50%; border: 3px solid transparent; cursor: pointer; }
+  .swatch.sel { border-color: var(--chalk); }
+  .ob-progress { display:flex; gap:6px; margin-bottom: 18px; }
+  .ob-dot { height: 4px; flex: 1; background: var(--line); border-radius: 2px; }
+  .ob-dot.on { background: var(--accent); }
+
+  .top-row { display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px; }
+  .back { background:none; border:none; color: var(--muted); font-size: 16px; cursor:pointer; padding:8px 8px 8px 0; }
+
+  .ex-card { background: var(--surface); border:1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 14px; }
+  .ex-card.done-all { opacity: 0.55; }
+  .ex-name { font-weight: 700; font-size: 18px; }
+  .ex-target { color: var(--muted); font-size: 14px; margin: 2px 0 6px; }
+  .ex-note { font-size: 13.5px; color: var(--accent); margin-bottom: 10px; }
+  .ex-last { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .set-row { display:flex; align-items:center; gap:8px; padding: 8px 0; border-top: 1px dashed var(--line); }
+  .set-lab { width: 44px; font-size: 13px; color: var(--muted); }
+  .ctrl { display:flex; align-items:center; gap:2px; }
+  .ctrl button { width: 42px; height: 46px; font-size: 22px; font-weight:700; background: var(--surface2); color: var(--chalk); border: 1px solid var(--line); border-radius: 10px; cursor:pointer; }
+  .ctrl button:active { background: var(--line); }
+  .weight-val, .rep-val { min-width: 58px; text-align:center; font-size: 18px; font-weight: 700; background: none; border:none; color: var(--chalk); padding: 0 2px; }
+  .weight-val { min-width: 66px; }
+  .kg { font-size: 11px; color: var(--muted); margin-left: -4px; }
+  .log-set { margin-left:auto; height: 46px; padding: 0 14px; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 15px; border: none; border-radius: 10px; cursor: pointer; }
+  .set-row.logged .log-set { background: var(--good); color:#14200f; }
+  .set-row.logged .set-lab { color: var(--good); }
+  .plate-chip { display:inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+
+  .finish-btn, .primary { width:100%; padding: 16px; background: var(--accent); color: var(--accent-ink); font-size: 18px; font-weight: 800; border:none; border-radius: 14px; cursor:pointer; margin-top: 8px; }
+  .ghost { width:100%; padding: 14px; margin-top: 10px; background: none; color: var(--muted); border: 1px solid var(--line); border-radius: 14px; font-size: 16px; cursor: pointer; }
+
+  #timerbar { position: fixed; left:0; right:0; bottom:0; background: #0e0c0a; border-top: 2px solid var(--accent); display: none; z-index: 50; }
+  #timerbar.on { display:block; }
+  .timer-inner { max-width: 520px; margin:0 auto; padding: 10px 16px 14px; display:flex; align-items:center; gap: 14px; }
+  .timer-digits { font-size: 44px; font-weight: 700; min-width: 130px; }
+  .timer-digits.low { color: var(--accent); }
+  .timer-lab { font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: var(--muted); }
+  .timer-btns { margin-left:auto; display:flex; gap:8px; }
+  .timer-btns button { height: 44px; padding: 0 12px; border-radius: 10px; border:1px solid var(--line); background: var(--surface); color: var(--chalk); font-size: 14px; font-weight: 700; cursor:pointer; }
+
+  .big-word { font-size: 34px; font-weight: 800; margin: 10px 0 4px; }
+  .mood-row { display:flex; gap:8px; margin: 14px 0; }
+  .mood { flex:1; padding: 14px 4px; border-radius: 12px; border:1px solid var(--line); background: var(--surface); color: var(--chalk); font-size: 15px; font-weight:700; cursor:pointer; }
+  .mood.sel { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .summary-line { padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 15px; }
+  .summary-line .mono { color: var(--accent); }
+  #exportText { min-height: 180px; margin-top: 12px; font-family: ui-monospace, Menlo, monospace; font-size: 13px; }
+
+  .hist-item { background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; }
+  .hist-item summary { cursor: pointer; font-weight: 700; }
+  .hist-item pre { white-space: pre-wrap; font-size: 13px; color: var(--muted); margin-top: 8px; font-family: ui-monospace, Menlo, monospace; }
+
+  .note-item { background: var(--surface); border:1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; font-size: 15px; }
+  .note-item .eyebrow { margin-bottom: 4px; }
+  .field-lab { font-size: 14px; font-weight: 700; margin: 14px 0 6px; }
+
+  button:focus-visible, .choice:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ============ ONBOARDING ============ -->
+<div class="screen wrap" id="onboard">
+  <p class="eyebrow">Coachellah · Your coach, getting to know you</p>
+  <div class="ob-progress" id="obProgress"></div>
+  <div id="obStep"></div>
+</div>
+
+<!-- ============ HOME ============ -->
+<div class="screen wrap" id="home">
+  <p class="eyebrow">Your coach</p>
+  <h1 class="greet" id="greeting"></h1>
+  <p class="sub" id="homeSub"></p>
+  <div class="coachline" id="coachline"></div>
+
+  <div id="ptBlock" style="display:none;">
+    <button class="action-card" onclick="openPtLog()">
+      <div class="eyebrow">Apprentice mode</div>
+      <div class="day-name">Log a trainer session</div>
+      <div class="day-why">Capture what your PT taught you today — every cue you write down is money you won't have to spend twice.</div>
+    </button>
+  </div>
+
+  <button class="action-card" onclick="openNotes()">
+    <div class="eyebrow">Notebook</div>
+    <div class="day-name">My learnings <span class="mono" id="noteCount"></span></div>
+    <div class="day-why">Anything you learn — form cues, machine settings, how things felt. This becomes YOUR training manual.</div>
+  </button>
+
+  <p class="eyebrow" style="margin:18px 0 8px;" id="soloHead">Solo workouts</p>
+  <div id="dayList"></div>
+
+  <div class="stats-row">
+    <div class="stat"><span class="mono" id="statCount">0</span><span>sessions logged</span></div>
+    <div class="stat"><span class="mono" id="statNotes">0</span><span>learnings saved</span></div>
+    <div class="stat"><span class="mono" id="statLast">—</span><span>last session</span></div>
+  </div>
+
+  <button class="linkbtn" onclick="show('history'); renderHistory()">History &amp; export everything</button>
+  <button class="linkbtn" onclick="restartOnboarding()">Redo my interview</button>
+</div>
+
+<!-- ============ PT SESSION LOG ============ -->
+<div class="screen wrap" id="ptlog">
+  <div class="top-row"><button class="back" onclick="show('home'); renderHome()">&larr; Home</button></div>
+  <p class="eyebrow">Apprentice mode</p>
+  <h2 class="day-name" style="margin-bottom:4px;">Trainer session</h2>
+  <p class="sub">Right after the session, while it's fresh. Short notes beat perfect notes.</p>
+
+  <div class="field-lab">What did you train today?</div>
+  <input type="text" id="ptFocus" placeholder="e.g. legs, upper body, full body">
+  <div class="field-lab">Exercises &amp; weights worth remembering</div>
+  <textarea id="ptExercises" placeholder="e.g. leg press 40kg 3x12, lat pulldown 25kg, squats with just the bar"></textarea>
+  <div class="field-lab">What did you learn? (cues, corrections, tips)</div>
+  <textarea id="ptLearnings" placeholder="e.g. 'keep chest up on squats', 'don't shrug on lat pulldown', 'breathe out on the push'"></textarea>
+  <div class="field-lab">How did it feel?</div>
+  <div class="mood-row">
+    <button class="mood" onclick="ptMoodPick(this,'Strong')">Strong</button>
+    <button class="mood" onclick="ptMoodPick(this,'Solid')">Solid</button>
+    <button class="mood" onclick="ptMoodPick(this,'Meh')">Meh</button>
+    <button class="mood" onclick="ptMoodPick(this,'Rough')">Rough</button>
+  </div>
+  <button class="primary" onclick="savePtSession()">Save trainer session</button>
+</div>
+
+<!-- ============ NOTES ============ -->
+<div class="screen wrap" id="notes">
+  <div class="top-row"><button class="back" onclick="show('home'); renderHome()">&larr; Home</button></div>
+  <h2 class="day-name" style="margin-bottom:4px;">My learnings</h2>
+  <p class="sub">Your personal training manual, one note at a time.</p>
+  <textarea id="newNote" placeholder="Write a learning… e.g. 'seat setting 4 on the chest press machine fits me'"></textarea>
+  <button class="primary" onclick="addNote()">Save learning</button>
+  <div id="noteList" style="margin-top:18px;"></div>
+</div>
+
+<!-- ============ SESSION (solo workout) ============ -->
+<div class="screen wrap" id="session">
+  <div class="top-row">
+    <button class="back" onclick="confirmLeave()">&larr; Home</button>
+    <span class="eyebrow" id="sessTimer">0 min</span>
+  </div>
+  <p class="eyebrow" id="sessEyebrow"></p>
+  <h2 class="day-name" id="sessTitle" style="margin-bottom:4px;"></h2>
+  <p class="sub" id="sessWhy"></p>
+  <div id="exList"></div>
+  <button class="finish-btn" onclick="finishSession()">Finish workout</button>
+</div>
+
+<!-- ============ DONE ============ -->
+<div class="screen wrap" id="done">
+  <p class="eyebrow">Session complete</p>
+  <h2 class="big-word" id="doneWord">Logged.</h2>
+  <p class="sub" id="doneSub"></p>
+  <p class="eyebrow" style="margin-top:10px;">One word — how did it feel?</p>
+  <div class="mood-row" id="moodRow">
+    <button class="mood" onclick="pickMood(this,'Strong')">Strong</button>
+    <button class="mood" onclick="pickMood(this,'Solid')">Solid</button>
+    <button class="mood" onclick="pickMood(this,'Meh')">Meh</button>
+    <button class="mood" onclick="pickMood(this,'Rough')">Rough</button>
+  </div>
+  <div id="doneSummary"></div>
+  <button class="primary" onclick="saveAndExport()">Save &amp; get log for Coach</button>
+  <button class="ghost" onclick="saveOnly()">Save without export</button>
+</div>
+
+<!-- ============ EXPORT ============ -->
+<div class="screen wrap" id="export">
+  <p class="eyebrow">For your coach</p>
+  <h2 class="day-name" style="margin-bottom:6px;">Send this to the Coach</h2>
+  <p class="sub">Copy everything below and send it on — the Coach reads it and sends back your adjusted plan.</p>
+  <textarea id="exportText" readonly></textarea>
+  <button class="primary" onclick="copyExport(this)">Copy to clipboard</button>
+  <button class="ghost" onclick="show('home'); renderHome()">Back home</button>
+</div>
+
+<!-- ============ HISTORY ============ -->
+<div class="screen wrap" id="history">
+  <div class="top-row"><button class="back" onclick="show('home'); renderHome()">&larr; Home</button></div>
+  <h2 class="day-name" style="margin-bottom:14px;">History</h2>
+  <div id="histList"></div>
+  <button class="primary" onclick="exportAll()">Export everything for Coach</button>
+</div>
+
+<!-- ============ TIMER BAR ============ -->
+<div id="timerbar">
+  <div class="timer-inner">
+    <div>
+      <div class="timer-lab">Rest</div>
+      <div class="timer-digits" id="timerDigits">1:30</div>
+    </div>
+    <div class="timer-btns">
+      <button onclick="addTime(30)">+30s</button>
+      <button onclick="stopTimer()">Skip</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ================= STORAGE ================= */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("coachos_" + k); return v ? JSON.parse(v) : d; } catch(e) { return d; } },
+  set(k, v) { try { localStorage.setItem("coachos_" + k, JSON.stringify(v)); } catch(e) {} }
+};
+let P = store.get("profile", null);
+let cur = null, timerInt = null, timerLeft = 0, sessTick = null, ptMood = null;
+
+/* ================= ONBOARDING ================= */
+const ACCENTS = [
+  { name: "Brass", val: "#f0a63f", ink: "#1c1508" },
+  { name: "Coral", val: "#e77e6a", ink: "#210f0b" },
+  { name: "Sage",  val: "#a4c47e", ink: "#131a0a" },
+  { name: "Sky",   val: "#7fb3d8", ink: "#0a141c" }
+];
+let ob = { step: 0, a: {} };
+const OB_STEPS = 8;
+
+function obProgress() {
+  const bar = document.getElementById("obProgress");
+  bar.innerHTML = "";
+  for (let i = 0; i < OB_STEPS; i++) {
+    const d = document.createElement("div");
+    d.className = "ob-dot" + (i <= ob.step ? " on" : "");
+    bar.appendChild(d);
+  }
+}
+function obRender() {
+  obProgress();
+  const el = document.getElementById("obStep");
+  const s = ob.step, a = ob.a;
+  if (s === 0) el.innerHTML =
+    "<div class='ob-step'><div class='ob-q'>Hi. I'm your coach.</div>" +
+    "<p class='ob-hint'>Before anything else — what should I call you?</p>" +
+    "<input type='text' id='obName' placeholder='Your first name' value='" + esc(a.name || "") + "'>" +
+    "<button class='primary' onclick='obNext()'>That's me</button></div>";
+  if (s === 1) el.innerHTML =
+    "<div class='ob-step'><div class='ob-q'>" + esc(a.name) + ", how new is the gym to you?</div>" +
+    "<p class='ob-hint'>No wrong answers. This just sets how much I explain.</p>" +
+    choice("exp", "new", "Brand new", "Just joined, learning the ropes") +
+    choice("exp", "some", "Some experience", "I've trained before, on and off") +
+    choice("exp", "pro", "Experienced", "Years under the bar") +
+    nextBtn() + "</div>";
+  if (s === 2) el.innerHTML =
+    "<div class='ob-step'><div class='ob-q'>What are you really after?</div>" +
+    "<p class='ob-hint'>Pick everything that's true. The 'why' shapes the plan.</p>" +
+    choice("goals", "tone", "Tone up & get stronger", "", true) +
+    choice("goals", "muscle", "Build muscle", "", true) +
+    choice("goals", "weight", "Manage weight", "", true) +
+    choice("goals", "energy", "Energy & health", "", true) +
+    choice("goals", "confidence", "Confidence & feeling good", "", true) +
+    nextBtn() + "</div>";
+  if (s === 3) el.innerHTML =
+    "<div class='ob-step'><div class='ob-q'>Do you train with a personal trainer?</div>" +
+    "<p class='ob-hint'>If yes, I'll switch on Apprentice mode — you record what the trainer teaches, and it becomes YOUR knowledge. Trainers are expensive; what you write down, you keep forever.</p>" +
+    choice("pt", "yes", "Yes, I have a PT", "I'll help you soak up everything they teach") +
+    choice("pt", "no", "No trainer", "Then I'm your guide") +
+    nextBtn() + "</div>";
+  if (s === 4) el.innerHTML =
+    "<div class='ob-step'><div class='ob-q'>How many days a week can you train on your own?</div>" +
+    "<p class='ob-hint'>Honest number, not ambitious number. " + (a.pt === "yes" ? "Not counting your PT days." : "") + "</p>" +
+    choice("solo", "1", "1 day", "") + choice("solo", "2", "2 days", "") +
+    choice("solo", "3", "3 days", "") + choice("solo", "0", "None for now", a.pt === "yes" ? "PT sessions only — that's fine" : "Just exploring for now") +
+    nextBtn() + "</div>";
+  if (s === 5) el.innerHTML =
+    "<div class='ob-step'><div class='ob-q'>Anything your body wants me to know?</div>" +
+    "<p class='ob-hint'>Old injuries, sore spots, conditions, anything you're careful with. Or leave it empty.</p>" +
+    "<textarea id='obBody' placeholder='e.g. sensitive lower back, knee clicks on lunges…'>" + esc(a.body || "") + "</textarea>" +
+    "<button class='primary' onclick='obNext()'>Noted</button></div>";
+  if (s === 6) el.innerHTML =
+    "<div class='ob-step'><div class='ob-q'>Loves and hates?</div>" +
+    "<p class='ob-hint'>Exercises or things you already enjoy — or dread. I'll remember.</p>" +
+    "<textarea id='obTaste' placeholder='e.g. love the treadmill, scared of the free-weights area…'>" + esc(a.taste || "") + "</textarea>" +
+    "<button class='primary' onclick='obNext()'>Saved</button></div>";
+  if (s === 7) el.innerHTML =
+    "<div class='ob-step'><div class='ob-q'>Last one — pick your color.</div>" +
+    "<p class='ob-hint'>Your app, your look.</p>" +
+    "<div class='swatches'>" + ACCENTS.map((c, i) =>
+      "<button class='swatch" + ((a.accent ?? 0) === i ? " sel" : "") + "' style='background:" + c.val + "' onclick='pickAccent(" + i + ")' aria-label='" + c.name + "'></button>").join("") +
+    "</div>" +
+    "<button class='primary' onclick='obFinish()'>Let's go</button></div>";
+  const inp = document.getElementById("obName");
+  if (inp && ob.step === 0) inp.focus();
+}
+function esc(t) { return String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\"/g,"&quot;").replace(/'/g,"&#39;"); }
+function choice(key, val, label, small, multi) {
+  const a = ob.a;
+  const sel = multi ? (a[key] || []).includes(val) : a[key] === val;
+  return "<button class='choice" + (sel ? " sel" : "") + "' onclick='obPick(\"" + key + "\",\"" + val + "\"," + !!multi + ")'>" +
+    label + (small ? "<small>" + small + "</small>" : "") + "</button>";
+}
+function nextBtn() { return "<button class='primary' onclick='obNext()'>Next</button>"; }
+function obPick(key, val, multi) {
+  if (multi) {
+    const arr = ob.a[key] || [];
+    ob.a[key] = arr.includes(val) ? arr.filter(v => v !== val) : arr.concat(val);
+  } else ob.a[key] = val;
+  obRender();
+}
+function pickAccent(i) { ob.a.accent = i; applyAccent(i); obRender(); }
+function applyAccent(i) {
+  const c = ACCENTS[i] || ACCENTS[0];
+  document.documentElement.style.setProperty("--accent", c.val);
+  document.documentElement.style.setProperty("--accent-ink", c.ink);
+}
+function obNext() {
+  const a = ob.a;
+  if (ob.step === 0) {
+    const n = (document.getElementById("obName").value || "").trim();
+    if (!n) return;
+    a.name = n.charAt(0).toUpperCase() + n.slice(1);
+  }
+  if (ob.step === 1 && !a.exp) return;
+  if (ob.step === 2 && !(a.goals || []).length) return;
+  if (ob.step === 3 && !a.pt) return;
+  if (ob.step === 4 && a.solo === undefined) return;
+  if (ob.step === 5) a.body = document.getElementById("obBody").value.trim();
+  if (ob.step === 6) a.taste = document.getElementById("obTaste").value.trim();
+  ob.step++;
+  obRender();
+}
+function obFinish() {
+  ob.a.accent = ob.a.accent ?? 0;
+  ob.a.created = Date.now();
+  P = ob.a;
+  store.set("profile", P);
+  show("home"); renderHome();
+}
+function restartOnboarding() {
+  if (!confirm("Redo the interview? Your logs and notes are kept — only your profile answers reset.")) return;
+  ob = { step: 0, a: Object.assign({}, P) };
+  show("onboard"); obRender();
+}
+
+/* ================= PLAN (solo days, beginner-safe full body A/B) ================= */
+function buildPlan() {
+  const beginnerNote = P.exp === "new";
+  const A = { id: 1, name: "Solo Workout A", eyebrow: "Full body · Push focus",
+    why: "Simple, safe, and it works the whole body. Alternate A and B.",
+    exercises: [
+      { n: "Goblet squat or leg press", sets: 3, reps: "10–12", rest: 120, note: beginnerNote ? "Chest up, sit back like reaching for a chair." : "" },
+      { n: "Chest press machine or push-ups", sets: 3, reps: "10–12", rest: 90, note: beginnerNote ? "Breathe out as you push." : "" },
+      { n: "Lat pulldown", sets: 3, reps: "10–12", rest: 90, note: beginnerNote ? "Pull with your elbows, don't shrug." : "" },
+      { n: "Dumbbell shoulder press", sets: 3, reps: "10–12", rest: 90 },
+      { n: "Plank", sets: 3, reps: "20–40 sec", rest: 60 }
+    ]};
+  const B = { id: 2, name: "Solo Workout B", eyebrow: "Full body · Pull focus",
+    why: "The other half of the pair. If you did A last time, do B.",
+    exercises: [
+      { n: "Leg press or lunges", sets: 3, reps: "10–12", rest: 120 },
+      { n: "Seated cable row", sets: 3, reps: "10–12", rest: 90, note: beginnerNote ? "Squeeze shoulder blades together at the end." : "" },
+      { n: "Incline push-ups or DB bench", sets: 3, reps: "10–12", rest: 90 },
+      { n: "Leg curls", sets: 3, reps: "10–12", rest: 90 },
+      { n: "Lateral raises", sets: 3, reps: "12–15", rest: 75, note: "Light weight, slow and strict." },
+      { n: "Dead bug", sets: 3, reps: "8 / side", rest: 60 }
+    ]};
+  return [A, B];
+}
+function coachLines() {
+  const g = P.goals || [];
+  const lines = [
+    "Small sessions, done often, beat perfect sessions done rarely.",
+    "You don't have to feel like it. You just have to show up — feelings follow.",
+    "Every note you save is a coaching fee you'll never pay twice."
+  ];
+  if (P.pt === "yes") lines.push("Your trainer teaches. You record. Soon, you won't need to rent that knowledge.");
+  if (g.includes("confidence")) lines.push("Confidence isn't found. It's built — one logged set at a time.");
+  if (g.includes("energy")) lines.push("The workout costs energy today and pays it back with interest all week.");
+  if (P.exp === "new") lines.push("Everyone in that gym was new once. Most of them still remember it. Nobody's judging.");
+  return lines;
+}
+
+/* ================= NAV / HOME ================= */
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+  window.scrollTo(0, 0);
+}
+function greeting() {
+  const h = new Date().getHours();
+  const t = h < 12 ? "Morning" : h < 17 ? "Afternoon" : "Evening";
+  return t + ", " + P.name + ".";
+}
+function renderHome() {
+  applyAccent(P.accent ?? 0);
+  document.getElementById("greeting").textContent = greeting();
+  const hist = store.get("history", []);
+  const notes = store.get("notes", []);
+  document.getElementById("statCount").textContent = hist.length;
+  document.getElementById("statNotes").textContent = notes.length;
+  document.getElementById("noteCount").textContent = notes.length ? "· " + notes.length : "";
+  if (hist.length) {
+    const last = hist[hist.length - 1];
+    const days = Math.round((Date.now() - last.ts) / 86400000);
+    document.getElementById("statLast").textContent = days === 0 ? "today" : days + "d ago";
+    document.getElementById("homeSub").textContent = "Last: " + last.dayName + (last.mood ? " · felt " + last.mood.toLowerCase() : "") + ".";
+  } else {
+    document.getElementById("statLast").textContent = "—";
+    document.getElementById("homeSub").textContent = P.pt === "yes"
+      ? "After your next trainer session, log it — that's where we start."
+      : "Pick a workout when you're ready.";
+  }
+  const lines = coachLines();
+  document.getElementById("coachline").innerHTML = "<b>Coach:</b> " + lines[new Date().getDate() % lines.length];
+  document.getElementById("ptBlock").style.display = P.pt === "yes" ? "block" : "none";
+
+  const list = document.getElementById("dayList");
+  const soloN = parseInt(P.solo || "0", 10);
+  list.innerHTML = "";
+  if (soloN === 0) {
+    document.getElementById("soloHead").textContent = "Solo workouts (when you're ready)";
+  } else {
+    document.getElementById("soloHead").textContent = "Solo workouts · " + soloN + "×/week";
+  }
+  buildPlan().forEach(d => {
+    const b = document.createElement("button");
+    b.className = "day-card";
+    b.innerHTML = "<div class='eyebrow'>" + d.eyebrow + "</div>" +
+      "<div class='day-name'>" + d.name + "</div>" +
+      "<div class='day-why'>" + d.why + "</div>";
+    b.onclick = () => startSession(d.id);
+    list.appendChild(b);
+  });
+}
+
+/* ================= PT SESSION ================= */
+function openPtLog() {
+  ptMood = null;
+  ["ptFocus","ptExercises","ptLearnings"].forEach(id => document.getElementById(id).value = "");
+  document.querySelectorAll("#ptlog .mood").forEach(b => b.classList.remove("sel"));
+  show("ptlog");
+}
+function ptMoodPick(btn, m) {
+  ptMood = m;
+  document.querySelectorAll("#ptlog .mood").forEach(b => b.classList.remove("sel"));
+  btn.classList.add("sel");
+}
+function savePtSession() {
+  const focus = document.getElementById("ptFocus").value.trim();
+  const exs = document.getElementById("ptExercises").value.trim();
+  const learn = document.getElementById("ptLearnings").value.trim();
+  if (!focus && !exs && !learn) { alert("Write at least one thing — even one cue counts."); return; }
+  const hist = store.get("history", []);
+  hist.push({ type: "pt", ts: Date.now(), dayName: "PT session" + (focus ? " — " + focus : ""), mood: ptMood, exText: exs, learn: learn, mins: null });
+  store.set("history", hist);
+  if (learn) {
+    const notes = store.get("notes", []);
+    learn.split("\n").filter(l => l.trim()).forEach(l => notes.push({ ts: Date.now(), src: "PT session", text: l.trim() }));
+    store.set("notes", notes);
+  }
+  show("home"); renderHome();
+}
+
+/* ================= NOTES ================= */
+function openNotes() { renderNotes(); show("notes"); }
+function addNote() {
+  const t = document.getElementById("newNote").value.trim();
+  if (!t) return;
+  const notes = store.get("notes", []);
+  notes.push({ ts: Date.now(), src: "me", text: t });
+  store.set("notes", notes);
+  document.getElementById("newNote").value = "";
+  renderNotes();
+}
+function renderNotes() {
+  const notes = store.get("notes", []);
+  const list = document.getElementById("noteList");
+  if (!notes.length) { list.innerHTML = "<p class='sub'>Empty for now. The first note is usually the one you'd otherwise forget.</p>"; return; }
+  list.innerHTML = "";
+  [...notes].reverse().forEach(n => {
+    const d = new Date(n.ts);
+    const div = document.createElement("div");
+    div.className = "note-item";
+    div.innerHTML = "<div class='eyebrow'>" + d.toISOString().slice(0,10) + (n.src === "PT session" ? " · from PT session" : "") + "</div>" + esc(n.text);
+    list.appendChild(div);
+  });
+}
+
+/* ================= SOLO SESSION ================= */
+function lastWeightFor(exName) {
+  const hist = store.get("history", []);
+  for (let i = hist.length - 1; i >= 0; i--) {
+    const found = (hist[i].ex || []).find(e => e.n === exName && e.sets.some(s => s.done && s.weight > 0));
+    if (found) {
+      const logged = found.sets.filter(s => s.done && s.weight > 0);
+      return logged[logged.length - 1].weight;
+    }
+  }
+  return null;
+}
+function startSession(dayId) {
+  const day = buildPlan().find(d => d.id === dayId);
+  cur = {
+    type: "solo", dayId, dayName: day.name, started: Date.now(), mood: null,
+    ex: day.exercises.map(e => ({
+      n: e.n,
+      sets: Array.from({ length: e.sets }, () => ({ done: false, weight: lastWeightFor(e.n) ?? 0, reps: 0 }))
+    }))
+  };
+  document.getElementById("sessEyebrow").textContent = day.eyebrow;
+  document.getElementById("sessTitle").textContent = day.name;
+  document.getElementById("sessWhy").textContent = day.why;
+  renderExercises(day);
+  show("session");
+  clearInterval(sessTick);
+  sessTick = setInterval(() => {
+    document.getElementById("sessTimer").textContent = Math.round((Date.now() - cur.started) / 60000) + " min";
+  }, 15000);
+  document.getElementById("sessTimer").textContent = "0 min";
+}
+function plateColor(w) {
+  if (w >= 100) return "var(--plate-red)";
+  if (w >= 60) return "var(--plate-blue)";
+  if (w >= 30) return "var(--plate-yel)";
+  if (w > 0) return "var(--plate-grn)";
+  return "var(--line)";
+}
+function renderExercises(day) {
+  const list = document.getElementById("exList");
+  list.innerHTML = "";
+  day.exercises.forEach((e, ei) => {
+    const st = cur.ex[ei];
+    const card = document.createElement("div");
+    card.className = "ex-card" + (st.sets.every(s => s.done) ? " done-all" : "");
+    let html = "<div class='ex-name'>" + e.n + "</div>" +
+      "<div class='ex-target'>" + e.sets + " sets × " + e.reps + "</div>";
+    if (e.note) html += "<div class='ex-note'>" + e.note + "</div>";
+    const lw = lastWeightFor(e.n);
+    if (lw) html += "<div class='ex-last'>Last time: <b class='mono'>" + lw + " kg</b>.</div>";
+    st.sets.forEach((s, si) => {
+      html += "<div class='set-row" + (s.done ? " logged" : "") + "'>" +
+        "<span class='set-lab'>" + (s.done ? "✓ " : "") + "Set " + (si + 1) + "</span>" +
+        "<span class='ctrl'>" +
+          "<button onclick='bump(" + ei + "," + si + ",\"weight\",-2.5)' aria-label='less weight'>−</button>" +
+          "<span class='weight-val'><span class='plate-chip' style='background:" + plateColor(s.weight) + "'></span>" + fmtW(s.weight) + "</span><span class='kg'>kg</span>" +
+          "<button onclick='bump(" + ei + "," + si + ",\"weight\",2.5)' aria-label='more weight'>+</button>" +
+        "</span>" +
+        "<span class='ctrl'>" +
+          "<button onclick='bump(" + ei + "," + si + ",\"reps\",-1)' aria-label='fewer reps'>−</button>" +
+          "<span class='rep-val'>" + s.reps + "</span>" +
+          "<button onclick='bump(" + ei + "," + si + ",\"reps\",1)' aria-label='more reps'>+</button>" +
+        "</span>" +
+        "<button class='log-set' onclick='logSet(" + ei + "," + si + "," + (e.rest || 90) + ")'>" + (s.done ? "✓" : "Log") + "</button>" +
+      "</div>";
+    });
+    card.innerHTML = html;
+    list.appendChild(card);
+  });
+}
+function fmtW(w) { return w % 1 === 0 ? w : w.toFixed(1); }
+function bump(ei, si, field, amt) {
+  const s = cur.ex[ei].sets[si];
+  s[field] = Math.max(0, +(s[field] + amt).toFixed(1));
+  redraw();
+}
+function logSet(ei, si, rest) {
+  const s = cur.ex[ei].sets[si];
+  s.done = !s.done;
+  redraw();
+  if (s.done) startTimer(rest);
+}
+function redraw() {
+  const day = buildPlan().find(d => d.id === cur.dayId);
+  const y = window.scrollY;
+  renderExercises(day);
+  window.scrollTo(0, y);
+}
+function confirmLeave() {
+  const any = cur && cur.ex.some(e => e.sets.some(s => s.done));
+  if (!any || confirm("Leave without finishing? Logged sets will be lost.")) {
+    stopTimer(); clearInterval(sessTick); cur = null;
+    show("home"); renderHome();
+  }
+}
+
+/* ================= REST TIMER ================= */
+function startTimer(sec) {
+  timerLeft = sec;
+  document.getElementById("timerbar").classList.add("on");
+  drawTimer();
+  clearInterval(timerInt);
+  timerInt = setInterval(() => {
+    timerLeft--;
+    drawTimer();
+    if (timerLeft <= 0) { stopTimer(); buzz(); }
+  }, 1000);
+}
+function addTime(s) { timerLeft += s; drawTimer(); }
+function stopTimer() {
+  clearInterval(timerInt);
+  document.getElementById("timerbar").classList.remove("on");
+}
+function drawTimer() {
+  const m = Math.floor(Math.max(0, timerLeft) / 60), s = Math.max(0, timerLeft) % 60;
+  const el = document.getElementById("timerDigits");
+  el.textContent = m + ":" + String(s).padStart(2, "0");
+  el.classList.toggle("low", timerLeft <= 10);
+}
+function buzz() {
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; g.gain.value = 0.15;
+    o.start(); o.stop(ctx.currentTime + 0.35);
+  } catch (e) {}
+}
+
+/* ================= FINISH / EXPORT ================= */
+function finishSession() {
+  stopTimer(); clearInterval(sessTick);
+  const loggedEx = cur.ex.filter(e => e.sets.some(s => s.done));
+  if (!loggedEx.length && !confirm("No sets logged. Finish anyway?")) return;
+  cur.mins = Math.round((Date.now() - cur.started) / 60000);
+  document.getElementById("doneSub").textContent = cur.dayName + " · " + cur.mins + " min · " + countSets() + " sets logged.";
+  document.getElementById("doneWord").textContent = doneWord();
+  document.querySelectorAll("#moodRow .mood").forEach(b => b.classList.remove("sel"));
+  cur.mood = null;
+  let html = "";
+  cur.ex.forEach(e => {
+    const done = e.sets.filter(s => s.done);
+    if (done.length) html += "<div class='summary-line'>" + e.n + " — <span class='mono'>" +
+      done.map(s => fmtW(s.weight) + "×" + s.reps).join(", ") + "</span></div>";
+  });
+  document.getElementById("doneSummary").innerHTML = html;
+  show("done");
+}
+function countSets() { return cur.ex.reduce((a, e) => a + e.sets.filter(s => s.done).length, 0); }
+function doneWord() {
+  const w = ["Logged.", "Banked.", "In the books.", "That's a brick laid.", "Future-you says thanks."];
+  return w[store.get("history", []).length % w.length];
+}
+function pickMood(btn, m) {
+  cur.mood = m;
+  document.querySelectorAll("#moodRow .mood").forEach(b => b.classList.remove("sel"));
+  btn.classList.add("sel");
+}
+function buildLog(sess) {
+  const d = new Date(sess.ts || Date.now());
+  let t = "## " + d.toISOString().slice(0, 10) + " — " + sess.dayName + "\n";
+  if (sess.mins) t += "Duration: " + sess.mins + " min\n";
+  t += "Feeling: " + (sess.mood || "not noted") + "\n";
+  if (sess.type === "pt") {
+    if (sess.exText) t += "Exercises/weights: " + sess.exText + "\n";
+    if (sess.learn) t += "Learned: " + sess.learn + "\n";
+  } else {
+    (sess.ex || []).forEach(e => {
+      const done = e.sets.filter(s => s.done);
+      if (done.length) t += "- " + e.n + ": " + done.map(s => fmtW(s.weight) + "kg × " + s.reps).join(", ") + "\n";
+    });
+  }
+  return t;
+}
+function profileText() {
+  const g = { tone: "tone up & strength", muscle: "build muscle", weight: "manage weight", energy: "energy & health", confidence: "confidence" };
+  let t = "# Coachellah profile — " + P.name + "\n";
+  t += "Experience: " + ({ new: "brand new", some: "some experience", pro: "experienced" }[P.exp] || "?") + "\n";
+  t += "Goals: " + (P.goals || []).map(x => g[x] || x).join(", ") + "\n";
+  t += "Personal trainer: " + (P.pt === "yes" ? "yes (Apprentice mode on)" : "no") + "\n";
+  t += "Solo days/week: " + (P.solo ?? "?") + "\n";
+  if (P.body) t += "Body notes: " + P.body + "\n";
+  if (P.taste) t += "Loves/hates: " + P.taste + "\n";
+  return t;
+}
+function persist() {
+  cur.ts = Date.now();
+  const hist = store.get("history", []);
+  hist.push(cur);
+  store.set("history", hist);
+}
+function saveAndExport() {
+  persist();
+  document.getElementById("exportText").value = profileText() + "\n" + buildLog(cur);
+  cur = null;
+  show("export");
+}
+function saveOnly() { persist(); cur = null; show("home"); renderHome(); }
+function copyExport(btn) {
+  const ta = document.getElementById("exportText");
+  ta.select(); ta.setSelectionRange(0, 99999);
+  try { navigator.clipboard.writeText(ta.value); } catch (e) { document.execCommand("copy"); }
+  btn.textContent = "Copied — send it to the Coach";
+  setTimeout(() => btn.textContent = "Copy to clipboard", 2500);
+}
+
+/* ================= HISTORY ================= */
+function renderHistory() {
+  const hist = store.get("history", []);
+  const list = document.getElementById("histList");
+  if (!hist.length) { list.innerHTML = "<p class='sub'>Nothing yet. The first one's always the biggest.</p>"; return; }
+  list.innerHTML = "";
+  [...hist].reverse().forEach(h => {
+    const d = new Date(h.ts);
+    const det = document.createElement("details");
+    det.className = "hist-item";
+    det.innerHTML = "<summary>" + d.toISOString().slice(0, 10) + " — " + esc(h.dayName) +
+      " <span class='eyebrow'>" + (h.mood || "") + "</span></summary><pre>" + esc(buildLog(h)) + "</pre>";
+    list.appendChild(det);
+  });
+}
+function exportAll() {
+  const hist = store.get("history", []);
+  const notes = store.get("notes", []);
+  let t = profileText() + "\n# Full history\n" + (hist.map(buildLog).join("\n") || "(no sessions yet)\n");
+  if (notes.length) t += "\n# Learnings notebook\n" + notes.map(n => "- [" + new Date(n.ts).toISOString().slice(0,10) + "] " + n.text).join("\n") + "\n";
+  document.getElementById("exportText").value = t;
+  show("export");
+}
+
+/* ================= BOOT ================= */
+if (P) { show("home"); renderHome(); }
+else { ob = { step: 0, a: {} }; show("onboard"); obRender(); }
+</script>
+</body>
+</html>
