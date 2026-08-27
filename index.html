@@ -147,12 +147,33 @@
   <div id="obStep"></div>
 </div>
 
+<!-- ============ COACH'S READ (end of onboarding payoff) ============ -->
+<div class="screen wrap" id="coachread">
+  <p class="eyebrow">Your coach · first assessment</p>
+  <div id="readBody"></div>
+  <button class="primary" onclick="show('home'); renderHome()">Take me to my plan</button>
+</div>
+
+<!-- ============ TIPS ============ -->
+<div class="screen wrap" id="tips">
+  <div class="top-row"><button class="back" onclick="show('home'); renderHome()">&larr; Home</button></div>
+  <h2 class="day-name" style="margin-bottom:4px;">From your coach</h2>
+  <p class="sub">Tips picked for you — based on your goals, your level, and how you train.</p>
+  <div id="tipsList"></div>
+</div>
+
 <!-- ============ HOME ============ -->
 <div class="screen wrap" id="home">
   <p class="eyebrow">Your coach</p>
   <h1 class="greet" id="greeting"></h1>
   <p class="sub" id="homeSub"></p>
   <div class="coachline" id="coachline"></div>
+
+  <button class="action-card" onclick="openTips()">
+    <div class="eyebrow">Tip of the day</div>
+    <div style="font-size:15.5px; margin:6px 0 4px;" id="tipOfDay"></div>
+    <div class="day-why">Tap for more from your coach →</div>
+  </button>
 
   <div id="ptBlock" style="display:none;">
     <button class="action-card" onclick="openPtLog()">
@@ -178,6 +199,7 @@
   </div>
 
   <button class="linkbtn" onclick="show('history'); renderHistory()">History &amp; export everything</button>
+  <button class="linkbtn" onclick="showCoachRead()">My coach's read of me</button>
   <button class="linkbtn" onclick="restartOnboarding()">Redo my interview</button>
 </div>
 
@@ -418,12 +440,107 @@ function obFinish() {
   ob.a.created = Date.now();
   P = ob.a;
   store.set("profile", P);
-  show("home"); renderHome();
+  showCoachRead();
 }
 function restartOnboarding() {
   if (!confirm("Redo the interview? Your logs and notes are kept — only your profile answers reset.")) return;
   ob = { step: 0, a: Object.assign({}, P) };
   show("onboard"); obRender();
+}
+
+/* ================= TIPS ENGINE ================= */
+const TIPS = [
+  { c: "Form & technique", t: "Learn each movement with light weight first. A perfect rep at 10 kg teaches your body more than a shaky rep at 30.", exp: ["new"] },
+  { c: "Form & technique", t: "Control the lowering half of every rep — 2–3 seconds down. Muscles grow most on the way down; bouncing wastes the rep." },
+  { c: "Form & technique", t: "Full range of motion beats heavy half-reps. Deep and controlled at a lighter weight builds more than shallow and heavy." },
+  { c: "Form & technique", t: "Breathe out on the effort (the push or pull), breathe in on the way back. It becomes automatic within weeks." },
+  { c: "Form & technique", t: "Film one working set now and then. Your phone camera sees what the mirror can't — angles, depth, back position." },
+  { c: "Form & technique", t: "If you can't hold the position without wobbling, the weight is too heavy today. There's no prize for ego reps.", exp: ["new", "some"] },
+  { c: "Making progress", t: "The whole secret in one line: do slightly more than last time. One more rep, one more kg. That's the entire game, forever." },
+  { c: "Making progress", t: "Hit the top of your rep range on all sets, twice in a row? Add the smallest weight your gym has. Slow is the point." },
+  { c: "Making progress", t: "Your log is your second coach. If the numbers creep up over months, you're winning — whatever the mirror says today." },
+  { c: "Making progress", t: "Stuck on a lift for 3+ weeks? Change the angle or the tool — dumbbells instead of barbell, incline instead of flat — not the whole plan.", exp: ["some", "pro"] },
+  { c: "Making progress", t: "Every 6–8 hard weeks, take one easy week at about 60% effort. Joints recover, and progress usually jumps right after.", exp: ["pro"] },
+  { c: "Recovery", t: "Muscle is built in bed, not in the gym. The workout is the signal; sleep is where the building happens. Protect your 7–9 hours." },
+  { c: "Recovery", t: "Sore is normal, pain is information. Soreness fades as you warm up; pain gets sharper. Train through soreness, never through pain." },
+  { c: "Recovery", t: "Rest days count as training. Walks, stretching, or nothing at all — recovery is when your body cashes the cheque you wrote in the gym." },
+  { c: "Food, simply", t: "Protein at most meals — eggs, beans, chicken, fish, yogurt, whichever fits your kitchen. Your muscles are made of what you eat." },
+  { c: "Food, simply", t: "You can't out-train a careless diet, but you don't need a perfect one either. 80% good choices, 20% living your life — that wins." },
+  { c: "Food, simply", t: "Drink more water than feels necessary. Strength drops from mild dehydration long before you feel thirsty." },
+  { c: "Food, simply", t: "A 10–15 minute walk after your biggest meal of the day quietly does wonders for blood sugar and digestion." },
+  { c: "Mindset", t: "In your first month, your ONLY real goal is showing up. Weights, sets, and details all come second to building the habit.", exp: ["new"] },
+  { c: "Mindset", t: "Bad day? Do a 20-minute half-effort session and log it. It keeps the habit alive — skipping is what feeds the quitting muscle." },
+  { c: "Mindset", t: "Nobody at the gym is watching you. Everyone is watching themselves in the mirror. You're free.", exp: ["new"], goal: ["confidence"] },
+  { c: "Mindset", t: "Motivation starts things; routine finishes them. Same days, same times, if your life allows it — decisions drain willpower." },
+  { c: "Mindset", t: "Feeling too tired to train is often the best reason to train — do a light session and check your energy after. It surprises most people.", goal: ["energy"] },
+  { c: "With your trainer", t: "Ask your trainer WHY, not just what. 'Why this exercise? Why this order?' — the answers are the real product you're paying for.", pt: "yes" },
+  { c: "With your trainer", t: "Log every PT session here while it's fresh. Two cues per session is 20+ cues in three months — that's a personal training manual you own.", pt: "yes" },
+  { c: "With your trainer", t: "Spend your trainer's attention on the big movements — squat, hinge, press, pull. Form cues there are worth ten machine tips.", pt: "yes" },
+  { c: "Getting started", t: "Machines are not cheating. They're training wheels that build real strength safely while you learn how your body moves.", exp: ["new"] },
+  { c: "Getting started", t: "Save machine seat settings in your learnings notebook. Future you, standing confused at the leg press, will be grateful.", exp: ["new"] },
+  { c: "Getting started", t: "A good warm-up in one line: 5 easy minutes of cardio, then one light set of each exercise before the real ones.", exp: ["new", "some"] },
+  { c: "Building muscle", t: "For muscle, the last 2–3 reps of a set — the hard, slow ones — are the reps that count. The earlier ones are just the delivery fee.", goal: ["muscle", "tone"] },
+  { c: "Building muscle", t: "Muscle arrives over months, not sessions. Take one photo a month — the mirror lies daily, the camera tells the truth quarterly.", goal: ["muscle", "tone"] },
+  { c: "Weight & body", t: "Strength training is the best friend a weight goal ever had: more muscle means your body burns more even while resting.", goal: ["weight"] },
+  { c: "Weight & body", t: "Don't slash food while training hard. Small, boring steps beat crash diets that crash you back to the start.", goal: ["weight"] }
+];
+function relevantTips() {
+  return TIPS.filter(tip =>
+    (!tip.exp || tip.exp.includes(P.exp)) &&
+    (!tip.goal || tip.goal.some(g => (P.goals || []).includes(g))) &&
+    (!tip.pt || tip.pt === P.pt)
+  );
+}
+function tipOfDay() {
+  const r = relevantTips();
+  if (!r.length) return "";
+  const dayIndex = Math.floor(Date.now() / 86400000);
+  return r[dayIndex % r.length].t;
+}
+function openTips() {
+  const list = document.getElementById("tipsList");
+  const r = relevantTips();
+  const cats = [...new Set(r.map(t => t.c))];
+  list.innerHTML = "";
+  cats.forEach(cat => {
+    const h = document.createElement("p");
+    h.className = "eyebrow";
+    h.style.margin = "16px 0 8px";
+    h.textContent = cat;
+    list.appendChild(h);
+    r.filter(t => t.c === cat).forEach(t => {
+      const d = document.createElement("div");
+      d.className = "note-item";
+      d.textContent = t.t;
+      list.appendChild(d);
+    });
+  });
+  show("tips");
+}
+function showCoachRead() {
+  const g = P.goals || [];
+  const gNames = { tone: "toning up and getting stronger", muscle: "building muscle", weight: "managing your weight", energy: "energy and health", confidence: "confidence" };
+  const goalText = g.map(x => gNames[x] || x).join(", ").replace(/, ([^,]*)$/, " and $1");
+  let h = "<h2 class='day-name' style='margin:6px 0 14px;'>Here's my read, " + esc(P.name) + ".</h2>";
+  if (P.exp === "new") h += "<p style='margin-bottom:12px;'>You're at the beginning — which is quietly the best place to be: no bad habits to unlearn, and the fastest progress of your whole training life happens in these first months.</p>";
+  if (P.exp === "some") h += "<p style='margin-bottom:12px;'>You've trained before, so your body remembers more than you think. We're not starting from zero — we're restarting from experience.</p>";
+  if (P.exp === "pro") h += "<p style='margin-bottom:12px;'>You know your way around a gym, so I'll skip the hand-holding and focus on consistency, small progressions, and keeping you healthy.</p>";
+  h += "<p style='margin-bottom:12px;'>You told me you're after <b>" + esc(goalText) + "</b>. Everything in here bends toward that" + (g.includes("confidence") ? " — and for the record, confidence isn't found at the gym, it's built there, one logged set at a time" : "") + ".</p>";
+  if (P.pt === "yes") h += "<p style='margin-bottom:12px;'><b>Your plan while you have a trainer:</b> your PT programs your sessions — my job is to make sure you KEEP what they teach. Log every trainer session, write down every cue. In a few months, that notebook becomes your own program, and the expensive lessons become yours forever.</p>";
+  else h += "<p style='margin-bottom:12px;'><b>Your plan:</b> two simple full-body workouts, A and B, done alternately on your training days. Simple is not a compromise — for building real strength and habit, simple done consistently beats fancy done occasionally.</p>";
+  const solo = parseInt(P.solo || "0", 10);
+  if (solo === 0 && P.pt === "yes") h += "<p style='margin-bottom:12px;'>No solo days for now — completely fine. Your homework is just the notebook. Solo workouts are waiting whenever you're ready.</p>";
+  else if (solo > 0) h += "<p style='margin-bottom:12px;'>You gave me <b>" + solo + " day" + (solo > 1 ? "s" : "") + " a week</b>. I'd rather have " + solo + " honest days than 6 imaginary ones — showing up on the days you promised is the whole game." + (solo > 4 ? " And since you chose a big number: guard your rest days like they're training days. They are." : "") + "</p>";
+  if (P.body) h += "<p style='margin-bottom:12px;'>You mentioned: <i>\"" + esc(P.body) + "\"</i> — noted and remembered. We work around pain, never through it. Anything that hurts gets swapped, not endured.</p>";
+  if (P.taste) h += "<p style='margin-bottom:12px;'>And I've noted what you enjoy and dread: <i>\"" + esc(P.taste) + "\"</i>. Expect more of the first and gentle strategy around the second.</p>";
+  const starter = relevantTips().slice(0, 3);
+  if (starter.length) {
+    h += "<p class='eyebrow' style='margin:16px 0 8px;'>Three tips to start with</p>";
+    starter.forEach(t => h += "<div class='note-item'>" + t.t + "</div>");
+  }
+  h += "<p class='sub' style='margin-top:14px;'>There's a fresh tip waiting on your home screen every day. Now — let's go to work.</p>";
+  document.getElementById("readBody").innerHTML = h;
+  show("coachread");
 }
 
 /* ================= PLAN (solo days, beginner-safe full body A/B) ================= */
@@ -497,6 +614,7 @@ function renderHome() {
   }
   const lines = coachLines();
   document.getElementById("coachline").innerHTML = "<b>Coach:</b> " + lines[new Date().getDate() % lines.length];
+  document.getElementById("tipOfDay").textContent = tipOfDay();
   document.getElementById("ptBlock").style.display = P.pt === "yes" ? "block" : "none";
 
   const list = document.getElementById("dayList");
