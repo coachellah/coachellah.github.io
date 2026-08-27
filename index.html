@@ -10,9 +10,15 @@
     --bg: #161311; --surface: #211d1a; --surface2: #2b2622; --line: #383129;
     --chalk: #f1eadf; --muted: #97897b;
     --accent: #f0a63f; --accent-ink: #1c1508;
-    --good: #9dc978;
+    --good: #9dc978; --deep: #0e0c0a;
     --plate-red: #c94f42; --plate-blue: #4f7fb5; --plate-yel: #d8b13c; --plate-grn: #6fa863;
     color-scheme: dark;
+  }
+  html[data-theme="light"] {
+    --bg: #f2ece1; --surface: #faf6ee; --surface2: #e9e1d2; --line: #d9cdb9;
+    --chalk: #29221a; --muted: #827664;
+    --good: #4e7d3a; --deep: #e7decd;
+    color-scheme: light;
   }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
   body {
@@ -95,14 +101,14 @@
   .weight-val { min-width: 66px; }
   .kg { font-size: 11px; color: var(--muted); margin-left: -4px; }
   .log-set { margin-left:auto; height: 46px; padding: 0 14px; background: var(--accent); color: var(--accent-ink); font-weight: 800; font-size: 15px; border: none; border-radius: 10px; cursor: pointer; }
-  .set-row.logged .log-set { background: var(--good); color:#14200f; }
+  .set-row.logged .log-set { background: var(--good); color:#f4f0e8; }
   .set-row.logged .set-lab { color: var(--good); }
   .plate-chip { display:inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
 
   .finish-btn, .primary { width:100%; padding: 16px; background: var(--accent); color: var(--accent-ink); font-size: 18px; font-weight: 800; border:none; border-radius: 14px; cursor:pointer; margin-top: 8px; }
   .ghost { width:100%; padding: 14px; margin-top: 10px; background: none; color: var(--muted); border: 1px solid var(--line); border-radius: 14px; font-size: 16px; cursor: pointer; }
 
-  #timerbar { position: fixed; left:0; right:0; bottom:0; background: #0e0c0a; border-top: 2px solid var(--accent); display: none; z-index: 50; }
+  #timerbar { position: fixed; left:0; right:0; bottom:0; background: var(--deep); border-top: 2px solid var(--accent); display: none; z-index: 50; }
   #timerbar.on { display:block; }
   .timer-inner { max-width: 520px; margin:0 auto; padding: 10px 16px 14px; display:flex; align-items:center; gap: 14px; }
   .timer-digits { font-size: 44px; font-weight: 700; min-width: 130px; }
@@ -147,7 +153,7 @@
   <div id="obStep"></div>
 </div>
 
-<!-- ============ COACH'S READ (end of onboarding payoff) ============ -->
+<!-- ============ COACH'S READ ============ -->
 <div class="screen wrap" id="coachread">
   <p class="eyebrow">Your coach · first assessment</p>
   <div id="readBody"></div>
@@ -201,6 +207,7 @@
   <button class="linkbtn" onclick="show('history'); renderHistory()">History &amp; export everything</button>
   <button class="linkbtn" onclick="showCoachRead()">My coach's read of me</button>
   <button class="linkbtn" onclick="restartOnboarding()">Redo my interview</button>
+  <button class="linkbtn" id="themeBtn" onclick="cycleTheme()">Theme: Auto</button>
 </div>
 
 <!-- ============ PT SESSION LOG ============ -->
@@ -236,7 +243,7 @@
   <div id="noteList" style="margin-top:18px;"></div>
 </div>
 
-<!-- ============ SESSION (solo workout) ============ -->
+<!-- ============ SESSION ============ -->
 <div class="screen wrap" id="session">
   <div class="top-row">
     <button class="back" onclick="confirmLeave()">&larr; Home</button>
@@ -543,7 +550,7 @@ function showCoachRead() {
   show("coachread");
 }
 
-/* ================= PLAN (solo days, beginner-safe full body A/B) ================= */
+/* ================= PLAN ================= */
 function buildPlan() {
   const beginnerNote = P.exp === "new";
   const A = { id: 1, name: "Solo Workout A", eyebrow: "Full body · Push focus",
@@ -976,7 +983,31 @@ function exportAll() {
   show("export");
 }
 
+/* ================= THEME ================= */
+function applyTheme() {
+  const mode = store.get("theme", "auto");
+  let dark = true;
+  try {
+    dark = mode === "dark" || (mode === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  } catch (e) { dark = mode !== "light"; }
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  const meta = document.querySelector("meta[name=theme-color]");
+  if (meta) meta.setAttribute("content", dark ? "#161311" : "#f2ece1");
+  const btn = document.getElementById("themeBtn");
+  if (btn) btn.textContent = "Theme: " + ({ auto: "Auto", dark: "Dark", light: "Light" }[mode]);
+}
+function cycleTheme() {
+  const order = ["auto", "dark", "light"];
+  const next = order[(order.indexOf(store.get("theme", "auto")) + 1) % order.length];
+  store.set("theme", next);
+  applyTheme();
+}
+try {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+} catch (e) {}
+
 /* ================= BOOT ================= */
+applyTheme();
 if (P) { show("home"); renderHome(); }
 else { ob = { step: 0, a: {} }; show("onboard"); obRender(); }
 </script>
