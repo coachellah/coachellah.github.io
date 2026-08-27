@@ -140,6 +140,10 @@
   .col-lab { font-size:11px; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); text-align:center; }
   .set-tools { display:flex; gap:20px; padding: 10px 0 2px; border-top: 1px dashed var(--line); }
   .set-tools button { background:none; border:none; color:var(--muted); font-size:14px; text-decoration:underline; cursor:pointer; padding:4px 0; }
+  .home-head { display:flex; justify-content:space-between; align-items:center; }
+  .theme-btn { width:42px; height:42px; border-radius:50%; background:var(--surface); border:1px solid var(--line); color:var(--muted); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; }
+  .theme-btn:active { border-color: var(--accent); color: var(--accent); }
+  .theme-btn svg { width:20px; height:20px; }
 
   button:focus-visible, .choice:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
@@ -170,7 +174,10 @@
 
 <!-- ============ HOME ============ -->
 <div class="screen wrap" id="home">
-  <p class="eyebrow">Your coach</p>
+  <div class="home-head">
+    <p class="eyebrow">Your coach</p>
+    <button class="theme-btn" id="themeBtn" onclick="cycleTheme()" aria-label="Change theme"></button>
+  </div>
   <h1 class="greet" id="greeting"></h1>
   <p class="sub" id="homeSub"></p>
   <div class="coachline" id="coachline"></div>
@@ -207,7 +214,6 @@
   <button class="linkbtn" onclick="show('history'); renderHistory()">History &amp; export everything</button>
   <button class="linkbtn" onclick="showCoachRead()">My coach's read of me</button>
   <button class="linkbtn" onclick="restartOnboarding()">Redo my interview</button>
-  <button class="linkbtn" id="themeBtn" onclick="cycleTheme()">Theme: Auto</button>
 </div>
 
 <!-- ============ PT SESSION LOG ============ -->
@@ -602,6 +608,7 @@ function greeting() {
 }
 function renderHome() {
   applyAccent(P.accent ?? 0);
+  applyTheme();
   document.getElementById("greeting").textContent = greeting();
   const hist = store.get("history", []);
   const notes = store.get("notes", []);
@@ -984,6 +991,11 @@ function exportAll() {
 }
 
 /* ================= THEME ================= */
+const THEME_ICONS = {
+  auto: "<svg viewBox='0 0 24 24' fill='none'><circle cx='12' cy='12' r='9' stroke='currentColor' stroke-width='2'/><path d='M12 3a9 9 0 0 1 0 18z' fill='currentColor'/></svg>",
+  dark: "<svg viewBox='0 0 24 24' fill='none'><path d='M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z' fill='currentColor'/></svg>",
+  light: "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round'><circle cx='12' cy='12' r='4'/><path d='M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1'/></svg>"
+};
 function applyTheme() {
   const mode = store.get("theme", "auto");
   let dark = true;
@@ -994,7 +1006,12 @@ function applyTheme() {
   const meta = document.querySelector("meta[name=theme-color]");
   if (meta) meta.setAttribute("content", dark ? "#161311" : "#f2ece1");
   const btn = document.getElementById("themeBtn");
-  if (btn) btn.textContent = "Theme: " + ({ auto: "Auto", dark: "Dark", light: "Light" }[mode]);
+  if (btn) {
+    btn.innerHTML = THEME_ICONS[mode];
+    const label = { auto: "Auto (follows your phone)", dark: "Dark", light: "Light" }[mode];
+    btn.title = "Theme: " + label + " — tap to change";
+    btn.setAttribute("aria-label", "Theme: " + label + " — tap to change");
+  }
 }
 function cycleTheme() {
   const order = ["auto", "dark", "light"];
